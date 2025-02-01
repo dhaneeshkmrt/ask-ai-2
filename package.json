@@ -19,12 +19,30 @@
       }
     ],
     "keybindings": [
+      {
+        "command": "ask-ai-2.openChat",
+        "key": "alt+q",
+        "when": "editorTextFocus"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
         {
-            "command": "ask-ai-2.openChat",
-            "key": "alt+q",
-            "when": "editorTextFocus"
+          "id": "ask-ai-2-sidebar",
+          "title": "Ask AI 2",
+          "icon": "assets/icon.svg"
         }
-    ]
+      ]
+    },
+    "views": {
+      "ask-ai-2-sidebar": [
+        {
+          "type": "webview",
+          "id": "ask-ai-2.chatView",
+          "name": "Chat"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
