@@ -59,7 +59,6 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "ollama": "^1.0.0"
   },
   "devDependencies": {
     "@types/vscode": "^1.96.0",

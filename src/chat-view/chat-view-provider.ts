@@ -25,7 +25,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 case 'addMessage':
                     this.addMessageToWebview(webviewView.webview, message.text, message.sender);
                     if (message.sender === 'user') {
+                        this.showLoader(webviewView.webview);
                         const response = await this.sendMessageToOllamaAPI(message.text);
+                        this.hideLoader(webviewView.webview);
                         this.addMessageToWebview(webviewView.webview, response, 'bot');
                     }
                     break;
@@ -45,7 +47,33 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         });
     }
 
-    private async sendMessageToOllamaAPI(prompt: string): Promise<string> {
+    private getSelectedCode() {
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+            const selection = editor.selection;
+            const selectedText = editor.document.getText(selection);
+            return selectedText;
+        }
+        return '';
+    }
+
+    private async sendMessageToOllamaAPI(userMessage: string): Promise<string> {
+        const userTypedMessage = `**User Query:** ${userMessage}\n`;
+        const selectedCode = `**Selected Code:** ${this.getSelectedCode()}\n`;
+        const task = `**Task:** Based on the above query and code, provide a detailed response, explanation, or solution.`
+        let prompt = '';
+        if (selectedCode) {
+            prompt = `${selectedCode}`;
+        } 
+
+        prompt += `${userTypedMessage}\n${task}`;
+            
+        const saf=``;
+        const response = this.getResponseText(prompt);
+        return response;
+    }
+
+    private async getResponseText(prompt: string): Promise<string> {
         const response = await fetch('http://localhost:11434/api/generate', {
             method: 'POST',
             headers: {
@@ -59,8 +87,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         });
         
         const data = await response.json() as AiResponse;
+        console.log('ask ai raw response: ', data.response);
+        console.log('===================');
         const formattedResponse = this.formatDeepSeekResponse(data.response);
-        console.log('ask ai', formattedResponse);
+        console.log('ask ai formatted Response', formattedResponse);
         return formattedResponse;
     }
 
@@ -81,6 +111,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             command: 'addMessage',
             text: text,
             sender: sender
+        });
+    }
+
+    private showLoader(webview: vscode.Webview) {
+        webview.postMessage({
+            command: 'showLoader'
+        });
+    }
+
+    private hideLoader(webview: vscode.Webview) {
+        webview.postMessage({
+            command: 'hideLoader'
         });
     }
 
@@ -107,6 +149,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             <div class="chat-messages" id="chat-messages">
                 <!-- Messages will be dynamically added here -->
             </div>
+            <div id="loader" class="loader" style="display: none;">Loading...</div>
             <form>
             <div class="chat-input">
                 <input id="chat-input" type="text" placeholder="Type here...">
@@ -127,6 +170,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                         break;
                     case 'addMessage':
                         addMessage(message.text, message.sender);
+                        break;
+                    case 'showLoader':
+                        document.getElementById('loader').style.display = 'block';
+                        break;
+                    case 'hideLoader':
+                        document.getElementById('loader').style.display = 'none';
                         break;
                 }
             });
@@ -248,6 +297,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
             .chat-input button:hover {
                 background-color: #1565c0;
+            }
+
+            .loader {
+                text-align: center;
+                padding: 10px;
+                color: #ffffff;
             }
         </style>
     </body>
