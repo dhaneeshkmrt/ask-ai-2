@@ -14,9 +14,16 @@
   "contributes": {
     "commands": [
       {
-        "command": "ask-ai-2.helloWorld",
-        "title": "Hello World"
+        "command": "ask-ai-2.openChat",
+        "title": "Ask AI 2: Open Chat"
       }
+    ],
+    "keybindings": [
+        {
+            "command": "ask-ai-2.openChat",
+            "key": "alt+q",
+            "when": "editorTextFocus"
+        }
     ]
   },
   "scripts": {
