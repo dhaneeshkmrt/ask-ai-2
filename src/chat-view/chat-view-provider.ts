@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as marked from 'marked';
 import { AiResponse } from '../models/ai-response.model';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
@@ -58,18 +59,23 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     private async sendMessageToOllamaAPI(userMessage: string): Promise<string> {
-        const userTypedMessage = `**User Query:** ${userMessage}\n`;
-        const selectedCode = `**Selected Code:** ${this.getSelectedCode()}\n`;
-        const task = `**Task:** Based on the above query and code, provide a detailed response, explanation, or solution.`
-        let prompt = '';
-        if (selectedCode) {
-            prompt = `${selectedCode}`;
-        } 
+        const selectedCode = this.getSelectedCode();
 
-        prompt += `${userTypedMessage}\n${task}`;
-            
-        const saf=``;
-        const response = this.getResponseText(prompt);
+        const systemPrompt = `You are an expert programming assistant. Format your responses using these rules:
+            1. Use markdown formatting with proper code blocks
+            2. Separate explanations and code with clear headings using markdown (##)
+            3. Keep explanations concise and focused
+            4. Structure complex responses in sections
+            `;
+
+        const prompt = `
+            ${selectedCode ? `**Context (Selected Code):** \`\`\` ${selectedCode} \`\`\`\n` : ''}
+            **User Query:** ${userMessage}
+            **Task:** Provide a clear, well-structured response that directly addresses the query. Include relevant code examples where appropriate.
+        `;
+        const s =``;
+
+        const response = await this.getResponseText(prompt);
         return response;
     }
 
@@ -81,30 +87,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             },
             body: JSON.stringify({
                 model: 'deepseek-coder:1.3b',
-                prompt: prompt, 
+                prompt: prompt,
                 stream: false,
             })
         });
-        
+
         const data = await response.json() as AiResponse;
         console.log('ask ai raw response: ', data.response);
         console.log('===================');
-        const formattedResponse = this.formatDeepSeekResponse(data.response);
-        console.log('ask ai formatted Response', formattedResponse);
-        return formattedResponse;
+        const htmlContent = marked.parse(data.response);
+        console.log('ask ai formatted Response', htmlContent);
+        return htmlContent;
     }
 
-    private formatDeepSeekResponse(responseText:string): string {
-        // Convert Markdown-style code blocks (```language ... ```) into <pre><code> blocks
-        responseText = responseText.replace(/```([\w+]*)\n([\s\S]*?)```/g, function(match, language, code) {
-            return `<pre><code class="language-${language || 'plaintext'}">${code.trim()}</code></pre>`;
-        });
-    
-        // Preserve line breaks outside code blocks
-        responseText = responseText.replace(/\n/g, "<br>");
-    
-        return responseText;
-    }
+
 
     private addMessageToWebview(webview: vscode.Webview, text: string, sender: string) {
         webview.postMessage({
@@ -152,7 +148,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             <div id="loader" class="loader" style="display: none;">Loading...</div>
             <form>
             <div class="chat-input">
-                <input id="chat-input" type="text" placeholder="Type here...">
+                <input id="chat-input" type="text" placeholder="Type here..." value="Refactor the code to make it more readable.">
                 <button type="submit" id="send-button">Send</button>
             </div>
             </form>
@@ -194,7 +190,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 const chatMessages = document.getElementById('chat-messages');
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message ' + sender;
-                const messageText = document.createElement('p');
+                const messageText = document.createElement('div');
+                messageText.className = 'div-message';
                 messageText.innerHTML = text;
                 messageDiv.appendChild(messageText);
                 chatMessages.appendChild(messageDiv);
@@ -251,19 +248,19 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 text-align: left;
             }
 
-            .message p {
+            .message .div-message {
                 display: inline-block;
                 padding: 10px;
                 border-radius: 10px;
                 max-width: 70%;
             }
 
-            .message.user p {
+            .message.user .div-message {
                 background-color: #0d47a1;
                 color: #ffffff;
             }
 
-            .message.bot p {
+            .message.bot .div-message {
                 background-color: #333;
                 color: #e0e0e0;
             }
