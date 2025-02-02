@@ -142,7 +142,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <body>
             <div class="chat-container">
                 <div class="chat-header">
-                    Chatbot
+                    Ask AI 2 Chatbot
                 </div>
                 <div class="chat-messages" id="chat-messages">
                     <!-- Messages will be dynamically added here -->
