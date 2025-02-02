@@ -16,12 +16,21 @@
       {
         "command": "ask-ai-2.openChat",
         "title": "Ask AI 2: Open Chat"
+      },
+      {
+        "command": "ask-ai-2.markDown",
+        "title": "Ask AI 2: Mark Down"
       }
     ],
     "keybindings": [
       {
         "command": "ask-ai-2.openChat",
         "key": "alt+q",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "ask-ai-2.markDown",
+        "key": "alt+shift+q",
         "when": "editorTextFocus"
       }
     ],

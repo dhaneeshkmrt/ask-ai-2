@@ -26,10 +26,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 case 'addMessage':
                     this.addMessageToWebview(webviewView.webview, message.text, message.sender);
                     if (message.sender === 'user') {
-                        this.showLoader(webviewView.webview);
-                        const response = await this.sendMessageToOllamaAPI(message.text);
-                        this.hideLoader(webviewView.webview);
-                        this.addMessageToWebview(webviewView.webview, response, 'bot');
+                        try {
+                            this.showLoader(webviewView.webview);
+                            const response = await this.sendMessageToOllamaAPI(message.text);
+                            this.addMessageToWebview(webviewView.webview, response, 'bot');
+                        } catch (error) {
+                            // show error notification
+                            vscode.window.showErrorMessage('An error occurred while fetching response from API');
+                        }finally{
+                            this.hideLoader(webviewView.webview);
+                        }
                     }
                     break;
             }
@@ -39,11 +45,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         webviewView.webview.postMessage({
             command: 'initialize',
             messages: [
-                { sender: 'user', text: 'Hi, I need help with my recent order #123456789' },
-                { sender: 'bot', text: 'Your order\'s on its way!' },
-                { sender: 'user', text: 'When will it arrive?' },
-                { sender: 'bot', text: 'Expect it by February 15th and keep an eye on it via XYZ123456789' },
-                { sender: 'user', text: 'Thanks a lot!' }
+                { sender: 'bot', text: 'Hi, Ask you query' },
             ]
         });
     }
@@ -73,7 +75,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             **User Query:** ${userMessage}
             **Task:** Provide a clear, well-structured response that directly addresses the query. Include relevant code examples where appropriate.
         `;
-        const s =``;
 
         const response = await this.getResponseText(prompt);
         return response;
@@ -129,182 +130,200 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         // Use a nonce to only allow specific scripts to be run
         const nonce = this.getNonce();
 
+        /* html */
         return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Chatbot Interface</title>
-    </head>
-    <body>
-        <div class="chat-container">
-            <div class="chat-header">
-                Chatbot
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Chatbot Interface</title>
+        </head>
+        <body>
+            <div class="chat-container">
+                <div class="chat-header">
+                    Chatbot
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <!-- Messages will be dynamically added here -->
+                </div>
+                <div id="loader" class="loader" style="display: none;">Loading...</div>
+                <form>
+                <div class="chat-input">
+                    <input id="chat-input" type="text" placeholder="Type here..." value="Refactor the code to make it more readable.">
+                    <button type="submit" id="send-button">Send</button>
+                </div>
+                </form>
             </div>
-            <div class="chat-messages" id="chat-messages">
-                <!-- Messages will be dynamically added here -->
-            </div>
-            <div id="loader" class="loader" style="display: none;">Loading...</div>
-            <form>
-            <div class="chat-input">
-                <input id="chat-input" type="text" placeholder="Type here..." value="Refactor the code to make it more readable.">
-                <button type="submit" id="send-button">Send</button>
-            </div>
-            </form>
-        </div>
-        <script nonce="${nonce}" src="${scriptUri}"></script>
-        <script nonce="${nonce}">
-            const vscode = acquireVsCodeApi();
+            <script nonce="${nonce}" src="${scriptUri}"></script>
+            <script nonce="${nonce}">
+                const vscode = acquireVsCodeApi();
 
-            window.addEventListener('message', event => {
-                const message = event.data;
-                switch (message.command) {
-                    case 'initialize':
-                        const messages = message.messages;
-                        messages.forEach(msg => addMessage(msg.text, msg.sender));
-                        break;
-                    case 'addMessage':
-                        addMessage(message.text, message.sender);
-                        break;
-                    case 'showLoader':
-                        document.getElementById('loader').style.display = 'block';
-                        break;
-                    case 'hideLoader':
-                        document.getElementById('loader').style.display = 'none';
-                        break;
+                window.addEventListener('message', event => {
+                    const message = event.data;
+                    switch (message.command) {
+                        case 'initialize':
+                            const messages = message.messages;
+                            messages.forEach(msg => addMessage(msg.text, msg.sender));
+                            break;
+                        case 'addMessage':
+                            addMessage(message.text, message.sender);
+                            break;
+                        case 'showLoader':
+                            document.getElementById('loader').style.display = 'block';
+                            break;
+                        case 'hideLoader':
+                            document.getElementById('loader').style.display = 'none';
+                            break;
+                    }
+                });
+
+                document.getElementById('send-button').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const input = document.getElementById('chat-input');
+                    const text = input.value;
+                    if (text) {
+                        vscode.postMessage({ command: 'addMessage', text: text, sender: 'user' });
+                        input.value = '';
+                    }
+                });
+
+                function addMessage(text, sender) {
+                    const chatMessages = document.getElementById('chat-messages');
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message ' + sender;
+                    const messageText = document.createElement('div');
+                    messageText.className = 'div-message';
+                    messageText.innerHTML = text;
+                    messageDiv.appendChild(messageText);
+                    chatMessages.appendChild(messageDiv);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
                 }
-            });
-
-            document.getElementById('send-button').addEventListener('click', (e) => {
-                e.preventDefault();
-                const input = document.getElementById('chat-input');
-                const text = input.value;
-                if (text) {
-                    vscode.postMessage({ command: 'addMessage', text: text, sender: 'user' });
-                    input.value = '';
+            </script>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background-color: #121212;
+                    margin: 0;
+                    padding: 0;
+                    height: 100vh;
+                    display: flex;
+                    flex-direction: column;
+                    color: #e0e0e0;
                 }
-            });
 
-            function addMessage(text, sender) {
-                const chatMessages = document.getElementById('chat-messages');
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'message ' + sender;
-                const messageText = document.createElement('div');
-                messageText.className = 'div-message';
-                messageText.innerHTML = text;
-                messageDiv.appendChild(messageText);
-                chatMessages.appendChild(messageDiv);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-        </script>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #121212;
-                margin: 0;
-                padding: 0;
-                height: 100vh;
-                display: flex;
-                flex-direction: column;
-                color: #e0e0e0;
-            }
+                code{
+                    color: rgb(234 146 138);
+                    background-color: #242423;
+                    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+                }
+                pre code {
+                    display: block;
+                    overflow-x: auto;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                    background-color: #242423;
+                    padding: 10px;
+                    border-radius: 5px;
+                    color: rgb(234 146 138);
+                    font-size: 0.7rem;
+                }
+                .chat-container {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    background-color: #1e1e1e;
+                    width: 100%;
+                    max-width: 100%;
+                    height: 100%;
+                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+                }
 
-            .chat-container {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                background-color: #1e1e1e;
-                width: 100%;
-                max-width: 100%;
-                height: 100%;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            }
+                .chat-header {
+                    background-color: #0d47a1;
+                    color: #ffffff;
+                    padding: 15px;
+                    font-size: 18px;
+                    text-align: center;
+                }
 
-            .chat-header {
-                background-color: #0d47a1;
-                color: #ffffff;
-                padding: 15px;
-                font-size: 18px;
-                text-align: center;
-            }
+                .chat-messages {
+                    flex: 1;
+                    padding: 15px;
+                    overflow-y: auto;
+                    border-bottom: 1px solid #333;
+                }
 
-            .chat-messages {
-                flex: 1;
-                padding: 15px;
-                overflow-y: auto;
-                border-bottom: 1px solid #333;
-            }
+                .message {
+                    margin-bottom: 15px;
+                }
 
-            .message {
-                margin-bottom: 15px;
-            }
+                .message.user {
+                    text-align: right;
+                }
 
-            .message.user {
-                text-align: right;
-            }
+                .message.bot {
+                    text-align: left;
+                }
 
-            .message.bot {
-                text-align: left;
-            }
+                .message .div-message {
+                    display: inline-block;
+                    padding: 10px;
+                    border-radius: 10px;
+                    max-width: 100%;
+                }
 
-            .message .div-message {
-                display: inline-block;
-                padding: 10px;
-                border-radius: 10px;
-                max-width: 70%;
-            }
+                .message.user .div-message {
+                    background-color: #0d47a1;
+                    color: #ffffff;
+                }
 
-            .message.user .div-message {
-                background-color: #0d47a1;
-                color: #ffffff;
-            }
+                .message.bot .div-message {
+                    background-color: #333;
+                    color: #e0e0e0;
+                }
 
-            .message.bot .div-message {
-                background-color: #333;
-                color: #e0e0e0;
-            }
+                .chat-input {
+                    display: flex;
+                    border-top: 1px solid #333;
+                    padding: 10px;
+                    background-color: #1e1e1e;
+                }
 
-            .chat-input {
-                display: flex;
-                border-top: 1px solid #333;
-                padding: 10px;
-                background-color: #1e1e1e;
-            }
+                .chat-input input {
+                    flex: 1;
+                    padding: 10px;
+                    border: 1px solid #333;
+                    border-radius: 5px;
+                    outline: none;
+                    background-color: #2c2c2c;
+                    color: #e0e0e0;
+                }
 
-            .chat-input input {
-                flex: 1;
-                padding: 10px;
-                border: 1px solid #333;
-                border-radius: 5px;
-                outline: none;
-                background-color: #2c2c2c;
-                color: #e0e0e0;
-            }
+                .chat-input button {
+                    padding: 10px 15px;
+                    background-color: #0d47a1;
+                    color: #ffffff;
+                    border: none;
+                    border-radius: 5px;
+                    margin-left: 10px;
+                    cursor: pointer;
+                }
 
-            .chat-input button {
-                padding: 10px 15px;
-                background-color: #0d47a1;
-                color: #ffffff;
-                border: none;
-                border-radius: 5px;
-                margin-left: 10px;
-                cursor: pointer;
-            }
+                .chat-input button:hover {
+                    background-color: #1565c0;
+                }
 
-            .chat-input button:hover {
-                background-color: #1565c0;
-            }
-
-            .loader {
-                text-align: center;
-                padding: 10px;
-                color: #ffffff;
-            }
-        </style>
-    </body>
-    </html>`;
+                .loader {
+                    text-align: center;
+                    padding: 10px;
+                    color: #ffffff;
+                }
+            </style>
+        </body>
+        </html>`;
     }
+
     private getNonce() {
         let text = '';
         const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
