@@ -69,3 +69,58 @@ You can author your README using Visual Studio Code. Here are some useful editor
 * [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
 
 **Enjoy!**
+
+
+
+    private processPrompt(userMessage: string): string {
+        const selectedCode = this.getSelectedCode();
+
+        const systemPrompt = `You are an expert programming assistant. Format your responses using these rules:
+            1. Use markdown formatting with proper code blocks
+            2. Separate explanations and code with clear headings using markdown (##)
+            3. Keep explanations concise and focused
+            4. Structure complex responses in sections
+            `;
+
+        const prompt = `
+            ${selectedCode ? `**Context (Selected Code):** \`\`\` ${selectedCode} \`\`\`\n` : ''}
+            **User Query:** ${userMessage}
+            **Task:** Provide a clear, well-structured response that directly addresses the query. Include relevant code examples where appropriate.
+        `;
+
+        return prompt;
+        // const response = await this.getResponseText(prompt);
+        // return response;
+    }
+
+
+    const  generateResponse = async (message: string) => {
+            try{
+                const prompt = this.processPrompt(message);
+                this.showLoader(webviewView.webview);
+
+                const stream = await ollama.generate({
+                    model: 'deepseek-r1:1.5b', // Model name
+                    prompt, // Your prompt
+                    stream: true, // Enable streaming
+                });
+                
+                //   {
+                //     model: "deepseek-r1:1.5b",
+                //     created_at: "2025-02-05T13:16:35.875786Z",
+                //     response: "<think>",
+                //     done: false,
+                //   }
+                // Process each chunk as it arrives
+                for await (const chunk of stream) {
+                    // process.stdout.write(chunk.response); // Print chunks to the console
+                    this.addMessageToWebview(webviewView.webview, chunk.response, 'bot');
+                }
+                this.hideLoader(webviewView.webview);
+
+            }catch(err){
+                console.log('Error', err);
+                this.hideLoader(webviewView.webview);
+            }
+              
+        }

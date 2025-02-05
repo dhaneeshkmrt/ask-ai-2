@@ -87,7 +87,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'deepseek-coder:1.3b',
+                model: 'deepseek-r1:1.5b',
                 prompt: prompt,
                 stream: false,
             })

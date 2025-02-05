@@ -68,7 +68,8 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "marked": "^15.0.6"
+    "marked": "^15.0.6",
+    "ollama": "^0.5.12"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.9",
