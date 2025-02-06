@@ -1,76 +1,96 @@
-# ask-ai-2 README
+# Installing and Running Ollama with Deepseek-R 1.5B
 
-This is the README for your extension "ask-ai-2". After writing up a brief description, we recommend including the following sections.
+This guide walks through installing Ollama and running the Deepseek-R 1.5B model on your local machine.
 
-## Features
+## Prerequisites
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- A Linux, macOS, or Windows system with WSL2
+- At least 8GB RAM (16GB recommended)
+- 4GB free disk space
+- NVIDIA GPU recommended but not required
 
-For example if there is an image subfolder under your extension project workspace:
+## Installing Ollama
 
-\!\[feature X\]\(images/feature-x.png\)
+### Linux
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+### macOS
+Download and install from https://ollama.com/download
 
-## Requirements
+### Windows
+1. Install WSL2 if not already installed
+2. Follow Linux installation instructions within WSL2
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+## Getting Started
 
-## Extension Settings
+1. Start the Ollama service:
+```bash
+systemctl start ollama    # Linux with systemd
+ollama serve             # macOS or manual start
+```
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+2. Pull the Deepseek-R 1.5B model:
+```bash
+ollama pull deepseek-coder:1.5b
+```
 
-For example:
+## Running the Model
 
-This extension contributes the following settings:
+### Command Line Interface
+```bash
+ollama run deepseek-coder:1.5b
+```
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+### API Usage
+Start making requests to the local API endpoint:
+```bash
+curl -X POST http://localhost:11434/api/generate -d '{
+  "model": "deepseek-coder:1.5b",
+  "prompt": "Write a Python function to calculate fibonacci numbers"
+}'
+```
 
-## Known Issues
+## Common Parameters
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+Adjust these parameters when running the model:
 
-## Release Notes
+- Temperature (creativity): `--temperature 0.7`
+- Context length: `--ctx-size 2048`
+- System prompt: `--system "You are a helpful coding assistant"`
 
-Users appreciate release notes as you update your extension.
+Example with parameters:
+```bash
+ollama run deepseek-coder:1.5b --temperature 0.7 --ctx-size 2048
+```
 
-### 1.0.0
+## Troubleshooting
 
-Initial release of ...
+1. If the model fails to load:
+   - Check available system memory
+   - Ensure GPU drivers are up to date (if using GPU)
+   - Verify model was downloaded successfully
 
-### 1.0.1
+2. If you get API connection errors:
+   - Confirm Ollama service is running
+   - Check if port 11434 is available
+   - Verify firewall settings
 
-Fixed issue #.
+## Resources
 
-### 1.1.0
+- Ollama documentation: https://ollama.com/docs
+- Deepseek-R model card: https://ollama.com/library/deepseek-coder
+- Community Discord: https://discord.gg/ollama
 
-Added features X, Y, and Z.
+## Additional Tips
 
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+- Use `ctrl+c` to exit the chat interface
+- Use `ollama list` to see installed models
+- Use `ollama rm deepseek-coder:1.5b` to remove the model
 
 
+### sadfsafd
 
     private processPrompt(userMessage: string): string {
         const selectedCode = this.getSelectedCode();
