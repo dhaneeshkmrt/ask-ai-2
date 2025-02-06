@@ -114,33 +114,4 @@ ollama run deepseek-coder:1.5b --temperature 0.7 --ctx-size 2048
     }
 
 
-    const  generateResponse = async (message: string) => {
-            try{
-                const prompt = this.processPrompt(message);
-                this.showLoader(webviewView.webview);
-
-                const stream = await ollama.generate({
-                    model: 'deepseek-r1:1.5b', // Model name
-                    prompt, // Your prompt
-                    stream: true, // Enable streaming
-                });
-                
-                //   {
-                //     model: "deepseek-r1:1.5b",
-                //     created_at: "2025-02-05T13:16:35.875786Z",
-                //     response: "<think>",
-                //     done: false,
-                //   }
-                // Process each chunk as it arrives
-                for await (const chunk of stream) {
-                    // process.stdout.write(chunk.response); // Print chunks to the console
-                    this.addMessageToWebview(webviewView.webview, chunk.response, 'bot');
-                }
-                this.hideLoader(webviewView.webview);
-
-            }catch(err){
-                console.log('Error', err);
-                this.hideLoader(webviewView.webview);
-            }
-              
-        }
+    

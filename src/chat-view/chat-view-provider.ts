@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 import * as marked from 'marked';
 import { AiResponse } from '../models/ai-response.model';
+import { Ollama } from 'ollama';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'ask-ai-2.chatView';
+    private ollama = new Ollama({ host: 'http://localhost:11434' });
 
     constructor(private readonly _extensionUri: vscode.Uri) { }
 
@@ -27,9 +29,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                     this.addMessageToWebview(webviewView.webview, message.text, message.sender);
                     if (message.sender === 'user') {
                         try {
-                            this.showLoader(webviewView.webview);
-                            const response = await this.sendMessageToOllamaAPI(message.text);
-                            this.addMessageToWebview(webviewView.webview, response, 'bot');
+                            this.generateResponse(message.text, webviewView);
                         } catch (error) {
                             // show error notification
                             vscode.window.showErrorMessage('An error occurred while fetching response from API');
@@ -58,6 +58,59 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             return selectedText;
         }
         return '';
+    }
+
+    private async generateResponse(message: string, webviewView: vscode.WebviewView){
+        try{
+            const prompt = this.processPrompt(message);
+            this.addResponseDiv(webviewView.webview);
+            this.showLoader(webviewView.webview);
+            let responseText = '';  
+            const stream = await this.ollama.generate({
+                model: 'deepseek-r1:1.5b', // Model name
+                prompt, // Your prompt
+                stream: true, // Enable streaming
+            });
+            
+            //   {
+            //     model: "deepseek-r1:1.5b",
+            //     created_at: "2025-02-05T13:16:35.875786Z",
+            //     response: "<think>",
+            //     done: false,
+            //   }
+            // Process each chunk as it arrives
+            for await (const chunk of stream) {
+                // process.stdout.write(chunk.response); // Print chunks to the console
+                // this.addMessageToWebview(webviewView.webview, chunk.response, 'bot');
+                responseText += chunk.response;
+                const markedResponse = marked.parse(responseText) as string;
+                this.addResponseMessage(webviewView.webview, markedResponse, chunk.done);
+            }
+            this.hideLoader(webviewView.webview);
+
+        }catch(err){
+            console.log('Error', err);
+            this.hideLoader(webviewView.webview);
+        } 
+    }
+
+    private processPrompt(userMessage: string): string {
+        const selectedCode = this.getSelectedCode();
+
+        const systemPrompt = `You are an expert programming assistant. Format your responses using these rules:
+            1. Use markdown formatting with proper code blocks
+            2. Separate explanations and code with clear headings using markdown (##)
+            3. Keep explanations concise and focused
+            4. Structure complex responses in sections
+            `;
+
+        const prompt = `
+            ${selectedCode ? `**Context (Selected Code):** \`\`\` ${selectedCode} \`\`\`\n` : ''}
+            **User Query:** ${userMessage}
+            **Task:** Provide a clear, well-structured response that directly addresses the query. Include relevant code examples where appropriate.
+        `;
+
+        return prompt;
     }
 
     private async sendMessageToOllamaAPI(userMessage: string): Promise<string> {
@@ -108,6 +161,23 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             command: 'addMessage',
             text: text,
             sender: sender
+        });
+    }
+    
+    private addResponseDiv(webview: vscode.Webview, text?: string, sender?: string) {
+        webview.postMessage({
+            command: 'addResponseDiv',
+            text: '',
+            sender: 'bot'
+        });
+    }
+    
+    private addResponseMessage(webview: vscode.Webview, text?: string, isDone= false) {
+        webview.postMessage({
+            command: 'addResponseMessage',
+            text: text,
+            sender: 'bot',
+            isDone: isDone
         });
     }
 
@@ -169,6 +239,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                         case 'addMessage':
                             addMessage(message.text, message.sender);
                             break;
+                        case 'addResponseDiv':
+                            console.log('addResponseDiv');
+                            addResponseDiv();
+                            break;
+                            case 'addResponseMessage':
+                            console.log('addResponseDiv');
+                            addResponseMessage(message.text, message.isDone);
+                            break;
                         case 'showLoader':
                             document.getElementById('loader').style.display = 'block';
                             break;
@@ -188,8 +266,29 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                     }
                 });
 
+                const chatMessages = document.getElementById('chat-messages');
+                let responseMessageDiv;
+                function addResponseDiv() {
+                    const responseDiv = document.createElement('div');
+                    responseDiv.className = 'message bot';
+                    const responseText = document.createElement('div');
+                    responseText.className = 'div-message thinking';
+                    responseText.innerHTML = 'Thinking...';
+                    responseDiv.appendChild(responseText);
+                    chatMessages.appendChild(responseDiv);
+                    responseMessageDiv = responseText;
+                    chatMessages.scrollTop = chatMessages.scrollHeight
+                }
+                function addResponseMessage(text, isDone) {
+                    responseMessageDiv.innerHTML = text;
+                    chatMessages.scrollTop = chatMessages.scrollHeight
+                    if(isDone){
+                        responseMessageDiv.classList.remove('thinking');
+                        responseMessageDiv = null;
+                    }
+                }
+
                 function addMessage(text, sender) {
-                    const chatMessages = document.getElementById('chat-messages');
                     const messageDiv = document.createElement('div');
                     messageDiv.className = 'message ' + sender;
                     const messageText = document.createElement('div');
