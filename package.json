@@ -1,14 +1,19 @@
 {
   "name": "ask-ai-2",
   "displayName": "ask-ai-2",
-  "description": "",
+  "description": "Ask ai 2 is a vscode extension that allows you to chat with an AI model which runs locally on your machine.",
   "version": "0.0.1",
+  "publisher": "dhaneeshkmrt",
   "engines": {
     "vscode": "^1.96.0"
   },
   "categories": [
     "Other"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlgorithmHealth/bdms-api.git"
+  },
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
